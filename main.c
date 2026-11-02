@@ -1,105 +1,92 @@
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
-#define MAX_TEXT_LENGHT 1000
-#define FILE_WITH_TASKS "tasks.txt"
-#define FILE_WITH_LOG "log.txt"
 
-#define ERROR_RANGE < 0
-#define ERROR 0
+#define MAX_TEXT_LENGTH 1000
+#define TASKS_PATH "tasks.txt"
+#define LOG_PATH   "log.txt"
+
+#define ERROR   0
 #define SUCCESS 1
 
-#define ERROR_NOT_ENOUGH_RIGHT_TO_WRITE "Not enough rights for write"
-#define ERROR_WRITING_IN_FILE "Fail at writing in file"
+#define MSG_NOT_ENOUGH_RIGHTS "Not enough rights for write"
+#define MSG_WRITING_FAILED    "Fail at writing in file"
 
-time_t getTime(void)
+static time_t getTime(void)
 {
     return time(NULL);
 }
 
-FILE *getFile(const char *filePath, const char *openMethod)
+static void logger(const char *message)
 {
-    return fopen(filePath, openMethod);
-}
-
-void logger(char *message)
-{
-    FILE *logFile = getFile(FILE_WITH_LOG, "a");
+    FILE *logFile = fopen(LOG_PATH, "a");
     if (logFile == NULL)
     {
-        printf("Logger error: %s, in dir: %s\n", ERROR_NOT_ENOUGH_RIGHT_TO_WRITE, FILE_WITH_LOG);
+        printf("Logger error: %s, in dir: %s\n",
+               MSG_NOT_ENOUGH_RIGHTS, LOG_PATH);
         return;
     }
 
-    fprintf(logFile, "%lld - log: %s", getTime(), message);
+    fprintf(logFile, "%lld - log: %s\n", (long long)getTime(), message);
     fclose(logFile);
 }
 
-int fileIsExists(const char *filePath)
+static int writeLineInFile(const char *filePath, const char *line)
 {
-    FILE *searchedFile = getFile(filePath, "r");
-    if (searchedFile == NULL)
+    FILE *writtenFile = fopen(filePath, "a");
+    if (writtenFile == NULL)
     {
-        return ERROR;
-    }
-    fclose(searchedFile);
-    return SUCCESS;
-}
-
-int writeLineInFile(const char *filePath, const char *line)
-{
-    FILE *writenFile = getFile(filePath, "a");
-    if (writenFile == NULL)
-    {
-        logger(ERROR_NOT_ENOUGH_RIGHT_TO_WRITE);
+        logger(MSG_NOT_ENOUGH_RIGHTS);
         return ERROR;
     }
 
-    if (fprintf(writenFile, "%s", line) ERROR_RANGE)
+    if (fprintf(writtenFile, "%s\n", line) < 0)
     {
-        logger(ERROR_WRITING_IN_FILE);
-        return ERROR;
-    }
-    fclose(writenFile);
-    return SUCCESS;
-}
-
-int newTask(const char *filePath, char *text)
-{
-    if (fileIsExists(filePath) == ERROR)
-    {
-        logger(ERROR_NOT_ENOUGH_RIGHT_TO_WRITE);
+        logger(MSG_WRITING_FAILED);
+        fclose(writtenFile);
         return ERROR;
     }
 
-    if (writeLineInFile(filePath, text) == ERROR)
+    if (fclose(writtenFile) != 0)
     {
+        logger(MSG_WRITING_FAILED);
         return ERROR;
     }
 
     return SUCCESS;
 }
 
-int getInput(char *buf, int size)
+static int newTask(const char *filePath, const char *text)
+{
+    return writeLineInFile(filePath, text);
+}
+
+static int getInput(char *buf, int size)
 {
     if (fgets(buf, size, stdin) == NULL)
     {
         return ERROR;
     }
+
+    buf[strcspn(buf, "\n")] = '\0';
     return SUCCESS;
 }
 
 int main(void)
 {
-    char input[MAX_TEXT_LENGHT];
+    char input[MAX_TEXT_LENGTH];
+
     if (getInput(input, sizeof(input)) == ERROR)
     {
         printf("An error has occurred\n");
         return 1;
     }
 
-    if (newTask(FILE_WITH_TASKS, input) == ERROR)
+    if (newTask(TASKS_PATH, input) == ERROR)
     {
         printf("An error has occurred\n");
         return 1;
     }
+
+    return 0;
 }
